@@ -1,0 +1,26 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+
+# ── Environment — NEVER commit secrets ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS / editor artefacts ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# ── Test / coverage output ────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── TypeScript incremental build cache ────────────────────────────────────────
+*.tsbuildinfo
