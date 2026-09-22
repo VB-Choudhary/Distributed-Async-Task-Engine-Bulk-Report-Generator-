@@ -23,6 +23,8 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import { httpLogger } from '../lib/logger';
 import { env } from '../config/env';
+import { checkDatabaseConnection } from '../lib/db';
+import { checkRedisConnection } from '../lib/redis';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -58,13 +60,43 @@ export function createApp(extraRouters: Router[] = []): express.Application {
 
   /**
    * GET /health
-   * Used by load balancers, Docker health checks, and monitoring.
-   * Intentionally minimal: just confirms the process is alive and
-   * the HTTP layer is responding. Database/Redis checks belong in
-   * a separate /readiness endpoint (future phase).
+   * Pure liveness check: confirms the process is alive and the HTTP layer is responsive.
+   * Does NOT check dependencies (used by orchestrators for process restarts).
    */
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok' });
+  });
+
+  /**
+   * GET /ready
+   * Dependency readiness check: queries PostgreSQL and pings Redis.
+   * Returns HTTP 200 when both are up; returns HTTP 503 with per-dependency detail when not.
+   */
+  app.get('/ready', async (_req: Request, res: Response) => {
+    const [dbStatus, redisStatus] = await Promise.all([
+      checkDatabaseConnection(),
+      checkRedisConnection(),
+    ]);
+
+    const isReady = dbStatus.ok && redisStatus.ok;
+
+    const response = {
+      status: isReady ? 'ready' : 'not_ready',
+      dependencies: {
+        postgres: {
+          status: dbStatus.ok ? 'up' : 'down',
+          ...(dbStatus.latencyMs !== undefined && { latencyMs: dbStatus.latencyMs }),
+          ...(dbStatus.error !== undefined && { error: dbStatus.error }),
+        },
+        redis: {
+          status: redisStatus.ok ? 'up' : 'down',
+          ...(redisStatus.latencyMs !== undefined && { latencyMs: redisStatus.latencyMs }),
+          ...(redisStatus.error !== undefined && { error: redisStatus.error }),
+        },
+      },
+    };
+
+    res.status(isReady ? 200 : 503).json(response);
   });
 
   // 3. Mount any extra routers (test-only; empty array in production)

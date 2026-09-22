@@ -36,6 +36,41 @@ export const envSchema = z.object({
     .default(3000),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+  DATABASE_URL: z
+    .string()
+    .refine(
+      (val) => {
+        try {
+          const url = new URL(val);
+          return url.protocol === 'postgres:' || url.protocol === 'postgresql:';
+        } catch {
+          return false;
+        }
+      },
+      {
+        message:
+          'DATABASE_URL must be a valid postgres connection string (e.g., postgresql://postgres:postgres@localhost:5432/reports)',
+      },
+    )
+    .default('postgresql://postgres:postgres@localhost:5432/reports'),
+
+  REDIS_URL: z
+    .string()
+    .refine(
+      (val) => {
+        try {
+          const url = new URL(val);
+          return url.protocol === 'redis:' || url.protocol === 'rediss:';
+        } catch {
+          return false;
+        }
+      },
+      {
+        message: 'REDIS_URL must be a valid redis connection string (e.g., redis://localhost:6379)',
+      },
+    )
+    .default('redis://localhost:6379'),
 });
 
 // Export the inferred type so other modules can annotate function parameters

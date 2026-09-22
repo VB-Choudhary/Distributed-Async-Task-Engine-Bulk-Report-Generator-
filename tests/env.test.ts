@@ -25,6 +25,18 @@ describe('parseConfig — valid configurations', () => {
     expect(config.PORT).toBe(3000);
     expect(config.LOG_LEVEL).toBe('info');
     expect(config.NODE_ENV).toBe('development');
+    expect(config.DATABASE_URL).toBe('postgresql://postgres:postgres@localhost:5432/reports');
+    expect(config.REDIS_URL).toBe('redis://localhost:6379');
+  });
+
+  it('accepts custom DATABASE_URL and REDIS_URL', () => {
+    const config = parseConfig({
+      DATABASE_URL: 'postgres://custom_user:secret@custom_host:5433/custom_db',
+      REDIS_URL: 'redis://custom_host:6380',
+    });
+
+    expect(config.DATABASE_URL).toBe('postgres://custom_user:secret@custom_host:5433/custom_db');
+    expect(config.REDIS_URL).toBe('redis://custom_host:6380');
   });
 
   it('parses PORT string as a number', () => {
@@ -93,6 +105,18 @@ describe('parseConfig — invalid configurations', () => {
 
   it('error message contains [Config] prefix for easy log grepping', () => {
     expect(() => parseConfig({ LOG_LEVEL: 'INVALID' })).toThrow(/\[Config\]/);
+  });
+
+  it('throws when DATABASE_URL is not a valid postgres connection string', () => {
+    expect(() => parseConfig({ DATABASE_URL: 'http://localhost:5432/reports' })).toThrow(
+      /DATABASE_URL/,
+    );
+    expect(() => parseConfig({ DATABASE_URL: 'not-a-valid-url' })).toThrow(/DATABASE_URL/);
+  });
+
+  it('throws when REDIS_URL is not a valid redis connection string', () => {
+    expect(() => parseConfig({ REDIS_URL: 'http://localhost:6379' })).toThrow(/REDIS_URL/);
+    expect(() => parseConfig({ REDIS_URL: 'not-a-valid-url' })).toThrow(/REDIS_URL/);
   });
 
   it('error message lists bad field names and [Config] prefix', () => {

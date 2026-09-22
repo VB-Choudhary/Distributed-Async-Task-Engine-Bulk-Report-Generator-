@@ -18,6 +18,8 @@
 import 'dotenv/config';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
+import { closeDatabasePool } from '../lib/db';
+import { closeRedisClients } from '../lib/redis';
 import { createApp } from './app';
 
 const app = createApp();
@@ -51,7 +53,9 @@ function shutdown(signal: string): void {
     } else {
       logger.info('Server closed cleanly');
     }
-    // process will exit on its own once the event loop empties
+
+    // Drain connection pool and disconnect redis clients
+    void Promise.allSettled([closeDatabasePool(), closeRedisClients()]);
   });
 }
 
