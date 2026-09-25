@@ -16,16 +16,16 @@ export default tseslint.config(
   prettierConfig,
 
   {
-    // Apply to all TypeScript source and test files
-    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    // Apply to all TypeScript source, test, and script files
+    files: ['src/**/*.ts', 'tests/**/*.ts', 'scripts/**/*.ts'],
 
     languageOptions: {
       parserOptions: {
         // projectService auto-discovers tsconfigs. We set defaultProject to
-        // tsconfig.test.json so test files (excluded from tsconfig.json) are
+        // tsconfig.test.json so test files and scripts (excluded from tsconfig.json) are
         // still parsed with full type information.
         projectService: {
-          allowDefaultProject: ['tests/*.ts'],
+          allowDefaultProject: ['tests/*.ts', 'tests/*/*.ts', 'scripts/*.ts'],
           defaultProject: './tsconfig.test.json',
         },
         tsconfigRootDir: import.meta.dirname,

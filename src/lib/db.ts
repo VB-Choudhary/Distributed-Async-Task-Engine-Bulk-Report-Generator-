@@ -17,19 +17,38 @@ import { Pool, PoolConfig } from 'pg';
 import { env } from '../config/env';
 import { logger } from './logger';
 
-const poolConfig: PoolConfig = {
-  connectionString: env.DATABASE_URL,
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-};
+/**
+ * Construct the test database connection string by replacing the database name with reports_test.
+ */
+export function getTestDatabaseUrl(): string {
+  const url = new URL(env.DATABASE_URL);
+  url.pathname = '/reports_test';
+  return url.toString();
+}
 
-export const pool = new Pool(poolConfig);
+/**
+ * Factory function to create a new Pool with standardized settings.
+ *
+ * @param connectionString - Optional connection URL; defaults to env.DATABASE_URL.
+ */
+export function createDatabasePool(connectionString?: string): Pool {
+  const config: PoolConfig = {
+    connectionString: connectionString ?? env.DATABASE_URL,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  };
 
-// Catch unexpected errors on idle database clients
-pool.on('error', (err) => {
-  logger.error({ err }, 'Unexpected error on idle PostgreSQL client');
-});
+  const newPool = new Pool(config);
+
+  newPool.on('error', (err) => {
+    logger.error({ err }, 'Unexpected error on idle PostgreSQL client');
+  });
+
+  return newPool;
+}
+
+export const pool = createDatabasePool(env.DATABASE_URL);
 
 export interface DatabaseHealthStatus {
   ok: boolean;

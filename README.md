@@ -52,11 +52,75 @@ Verify containers are running and healthy:
 docker compose ps
 ```
 
-### 5. Start Development Server
+### 5. Apply Database Migrations
+```cmd
+npm run migrate:up
+```
+
+### 6. Start Development Server
 ```cmd
 npm run dev
 ```
 The server will start on `http://localhost:3000` with hot-reloading enabled.
+
+---
+
+## Database Schema & Migrations
+
+Database schema migrations are version-controlled using `node-pg-migrate` and stored in `migrations/`.
+
+### Migration Commands
+
+| Command | Action |
+|---|---|
+| `npm run migrate:up` | Applies all pending migrations to the database specified in `.env` (`DATABASE_URL`). |
+| `npm run migrate:down` | Reverts the single most recent migration (`down 1`). |
+| `npm run migrate:create <name>` | Generates a new timestamped `.sql` migration file in `migrations/`. |
+| `npm run db:setup-test` | Idempotently creates the dedicated test database (`reports_test`) and runs all migrations. |
+
+### Reports Table Schema
+
+| Column | Type | Constraints / Defaults | Description |
+|---|---|---|---|
+| `id` | `uuid` | `PRIMARY KEY DEFAULT gen_random_uuid()` | Unique report identifier |
+| `status` | `text` | `NOT NULL DEFAULT 'PENDING'`<br>`CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'PERMANENTLY_FAILED'))` | State machine status |
+| `params` | `jsonb` | `NOT NULL` | JSON parameters for generation (date range, format, filters) |
+| `attempts` | `integer` | `NOT NULL DEFAULT 0` | Retry counter |
+| `file_path` | `text` | `NULL` | Destination path for generated PDF/CSV report |
+| `error_trace` | `text` | `NULL` | Error details if generation failed |
+| `created_at` | `timestamptz` | `NOT NULL DEFAULT NOW()` | Record creation timestamp |
+| `updated_at` | `timestamptz` | `NOT NULL DEFAULT NOW()` | Last update timestamp |
+| `started_at` | `timestamptz` | `NULL` | Time generation processing began |
+| `completed_at` | `timestamptz` | `NULL` | Time generation finished or permanently failed |
+
+### Report Lifecycle State Machine
+
+```
+   ┌─────────────┐
+   │   PENDING   │ ───────────────┐
+   └─────────────┘                │
+          │                       │
+          ▼                       ▼
+   ┌─────────────┐         ┌──────────────────────┐
+┌─ │ PROCESSING  │ ──────> │  PERMANENTLY_FAILED  │ (Terminal)
+│  └─────────────┘         └──────────────────────┘
+│     │         ▲                 ▲
+│     ▼         │                 │
+│  ┌──────┐     │                 │
+│  │FAILED│ ────┴─────────────────┘
+│  └──────┘
+│
+▼
+┌─────────────┐
+│  COMPLETED  │ (Terminal)
+└─────────────┘
+```
+
+- **PENDING**: Job submitted, queued for worker pickup. Allowed transitions: `PROCESSING`, `PERMANENTLY_FAILED`.
+- **PROCESSING**: Worker is currently generating report. Allowed transitions: `COMPLETED`, `FAILED`, `PERMANENTLY_FAILED`.
+- **FAILED**: Temporary failure occurred; eligible for retry. Allowed transitions: `PROCESSING`, `PERMANENTLY_FAILED`.
+- **COMPLETED**: Terminal state; report file generated successfully.
+- **PERMANENTLY_FAILED**: Terminal state; job exhausted retry limit or unrecoverable error.
 
 ---
 
@@ -167,3 +231,7 @@ cmd /c "npm run infra:up"
 | `npm run infra:up` | Starts Postgres & Redis containers in Docker |
 | `npm run infra:down` | Stops containers preserving data |
 | `npm run infra:reset` | Stops containers and drops volume data |
+| `npm run migrate:up` | Applies all pending migrations to PostgreSQL |
+| `npm run migrate:down` | Rolls back the most recent migration |
+| `npm run migrate:create <name>` | Generates a new migration file in migrations/ |
+| `npm run db:setup-test` | Creates reports_test database and runs migrations |

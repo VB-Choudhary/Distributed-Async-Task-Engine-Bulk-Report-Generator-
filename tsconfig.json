@@ -16,7 +16,11 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "node-pg-migrate": ["node_modules/node-pg-migrate/dist/bundle/index.d.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
