@@ -54,15 +54,26 @@ export class ReportsRepository {
 
   /**
    * Insert a new report in PENDING status.
+   * If an explicit id is provided (e.g. for matching BullMQ jobId), it is used;
+   * otherwise, PostgreSQL generates a random UUID via default gen_random_uuid().
    */
   async create(input: CreateReportInput): Promise<Report> {
-    const query = `
-      INSERT INTO reports (params)
-      VALUES ($1::jsonb)
-      RETURNING id, status, params, attempts, file_path, error_trace,
-                created_at, updated_at, started_at, completed_at;
-    `;
-    const params = [JSON.stringify(input.params)];
+    const query = input.id
+      ? `
+        INSERT INTO reports (id, params)
+        VALUES ($1, $2::jsonb)
+        RETURNING id, status, params, attempts, file_path, error_trace,
+                  created_at, updated_at, started_at, completed_at;
+      `
+      : `
+        INSERT INTO reports (params)
+        VALUES ($1::jsonb)
+        RETURNING id, status, params, attempts, file_path, error_trace,
+                  created_at, updated_at, started_at, completed_at;
+      `;
+    const params = input.id
+      ? [input.id, JSON.stringify(input.params)]
+      : [JSON.stringify(input.params)];
 
     const result = await this.db.query<ReportRow>(query, params);
     const row = result.rows[0];

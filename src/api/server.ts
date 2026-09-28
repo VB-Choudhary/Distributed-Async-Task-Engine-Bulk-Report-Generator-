@@ -20,6 +20,7 @@ import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { closeDatabasePool } from '../lib/db';
 import { closeRedisClients } from '../lib/redis';
+import { closeReportQueue } from '../queue/queues';
 import { createApp } from './app';
 
 const app = createApp();
@@ -54,8 +55,8 @@ function shutdown(signal: string): void {
       logger.info('Server closed cleanly');
     }
 
-    // Drain connection pool and disconnect redis clients
-    void Promise.allSettled([closeDatabasePool(), closeRedisClients()]);
+    // Drain connection pool, close queue, and disconnect redis clients
+    void Promise.allSettled([closeReportQueue(), closeDatabasePool(), closeRedisClients()]);
   });
 }
 

@@ -28,5 +28,16 @@ export interface Report {
 }
 
 export interface CreateReportInput {
+  id?: string;
   params: Record<string, unknown>;
+}
+
+export interface GenerateReportJobPayload {
+  reportId: string;
+}
+
+export interface GenerateReportResponse {
+  jobId: string;
+  status: ReportStatus;
+  statusUrl: string;
 }

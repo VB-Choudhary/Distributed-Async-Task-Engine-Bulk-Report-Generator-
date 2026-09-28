@@ -25,6 +25,7 @@ import { httpLogger } from '../lib/logger';
 import { env } from '../config/env';
 import { checkDatabaseConnection } from '../lib/db';
 import { checkRedisConnection } from '../lib/redis';
+import { reportsRouter } from '../modules/reports/reports.routes';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,9 @@ export function createApp(extraRouters: Router[] = []): express.Application {
 
     res.status(isReady ? 200 : 503).json(response);
   });
+
+  // Report generation routes
+  app.use('/api/reports', reportsRouter);
 
   // 3. Mount any extra routers (test-only; empty array in production)
   for (const router of extraRouters) {

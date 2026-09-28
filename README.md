@@ -168,6 +168,51 @@ Database schema migrations are version-controlled using `node-pg-migrate` and st
   }
   ```
 
+### 3. `POST /api/reports/generate`
+- **Purpose**: Ingestion endpoint (Producer). Validates report parameters, inserts a `PENDING` report record into PostgreSQL, and enqueues a job into BullMQ (`report-generation`).
+- **Request Body (JSON, max 100kb)**:
+  - `reportType`: `'invoice'` | `'analytics'` (required)
+  - `format`: `'pdf'` | `'csv'` (required)
+  - `rowCount`: integer between `1` and `500` (required)
+  - `title`: optional string, max 100 characters
+- **Responses**:
+  - `202 Accepted`: Job accepted for asynchronous generation.
+    ```json
+    {
+      "jobId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "status": "PENDING",
+      "statusUrl": "/api/reports/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    }
+    ```
+  - `400 Bad Request`: Validation failure.
+    ```json
+    {
+      "status": "error",
+      "message": "Validation failed",
+      "errors": [
+        { "field": "rowCount", "message": "Row count must not exceed 500" }
+      ]
+    }
+    ```
+  - `503 Service Unavailable`: Queue dispatch failed. Failure compensation marks the PostgreSQL row as `PERMANENTLY_FAILED` and records the error stack trace.
+    ```json
+    {
+      "status": "error",
+      "message": "Service temporarily unavailable. Failed to enqueue report job."
+    }
+    ```
+
+#### Example cURL Command (Windows Command Prompt)
+```cmd
+curl -i -X POST http://localhost:3000/api/reports/generate -H "Content-Type: application/json" -d "{\"reportType\":\"invoice\",\"format\":\"pdf\",\"rowCount\":100,\"title\":\"Q1 Invoices\"}"
+```
+
+#### Inspecting BullMQ Jobs in Redis
+```cmd
+docker compose exec redis redis-cli KEYS "bull:report-generation:*"
+docker compose exec redis redis-cli HGETALL "bull:report-generation:<jobId>"
+```
+
 ---
 
 ## Windows & Docker Troubleshooting Guide
