@@ -213,6 +213,47 @@ docker compose exec redis redis-cli KEYS "bull:report-generation:*"
 docker compose exec redis redis-cli HGETALL "bull:report-generation:<jobId>"
 ```
 
+### 4. `GET /api/reports/:jobId`
+- **Purpose**: Status Polling API. Retrieves the current processing status of a report from PostgreSQL.
+- **Headers**:
+  - Always returns `Cache-Control: no-store` so clients and intermediate proxies never serve stale polling state.
+- **URL Parameters**:
+  - `jobId`: Valid UUID (RFC 4122). Returns HTTP 400 if malformed.
+- **Responses**:
+  - `200 OK`: Report found. Response contract:
+    - `downloadUrl`: String path `"/api/reports/<jobId>/download"` only when status is `COMPLETED`, otherwise `null`.
+    - `errorMessage`: Safe, sanitized human-readable string only when status is `PERMANENTLY_FAILED`, otherwise `null`. System internals and stack traces are never exposed.
+    ```json
+    {
+      "jobId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "status": "PENDING",
+      "attempts": 0,
+      "createdAt": "2026-09-30T10:00:00.000Z",
+      "updatedAt": "2026-09-30T10:00:00.000Z",
+      "downloadUrl": null,
+      "errorMessage": null
+    }
+    ```
+  - `400 Bad Request`: Invalid UUID syntax.
+    ```json
+    {
+      "status": "error",
+      "message": "Invalid job ID format: must be a valid UUID"
+    }
+    ```
+  - `404 Not Found`: No report found for the given UUID.
+    ```json
+    {
+      "status": "error",
+      "message": "Report not found"
+    }
+    ```
+
+#### Example cURL Command (Windows Command Prompt)
+```cmd
+curl -i http://localhost:3000/api/reports/f47ac10b-58cc-4372-a567-0e02b2c3d479
+```
+
 ---
 
 ## Windows & Docker Troubleshooting Guide

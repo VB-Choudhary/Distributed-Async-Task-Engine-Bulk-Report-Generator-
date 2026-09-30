@@ -37,3 +37,9 @@ export const generateReportSchema = z.object({
 });
 
 export type GenerateReportInput = z.infer<typeof generateReportSchema>;
+
+export const reportIdParamSchema = z.object({
+  jobId: z.string().uuid({ message: 'jobId must be a valid UUID' }),
+});
+
+export type ReportIdParam = z.infer<typeof reportIdParamSchema>;

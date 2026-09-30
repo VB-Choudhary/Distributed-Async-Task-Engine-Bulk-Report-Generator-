@@ -7,9 +7,8 @@
  * - POST /generate: Validates request parameters, inserts a PENDING report,
  *   dispatches the job to the BullMQ queue, and returns HTTP 202 Accepted.
  */
-import { Router, Request, Response, NextFunction } from 'express';
-import express from 'express';
-import { generateReportSchema } from './reports.schema';
+import express, { Router, Request, Response, NextFunction } from 'express';
+import { generateReportSchema, reportIdParamSchema } from './reports.schema';
 import { reportsService, ReportsService, ServiceUnavailableError } from './reports.service';
 
 /**
@@ -84,6 +83,42 @@ export function createReportsRouter(service: ReportsService = reportsService): R
       }
     },
   );
+
+  /**
+   * GET /:jobId
+   * Retrieves the current processing status of a report.
+   * Returns HTTP 400 if jobId is not a valid UUID.
+   * Returns HTTP 404 if no report exists for the jobId.
+   * Always sets Cache-Control: no-store header.
+   */
+  router.get('/:jobId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Polling responses must never be cached by clients or intermediaries
+    res.setHeader('Cache-Control', 'no-store');
+
+    const paramResult = reportIdParamSchema.safeParse(req.params);
+    if (!paramResult.success) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid job ID format: must be a valid UUID',
+      });
+      return;
+    }
+
+    try {
+      const reportStatus = await service.getReportStatus(paramResult.data.jobId);
+      if (!reportStatus) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Report not found',
+        });
+        return;
+      }
+
+      res.status(200).json(reportStatus);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   return router;
 }

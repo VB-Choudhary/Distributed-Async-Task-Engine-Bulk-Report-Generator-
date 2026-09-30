@@ -17,8 +17,13 @@
 import { Queue } from 'bullmq';
 import { reportQueue } from '../../queue/queues';
 import { reportsRepository, ReportsRepository } from './reports.repository';
-import { GenerateReportJobPayload, GenerateReportResponse } from './report.types';
+import {
+  GenerateReportJobPayload,
+  GenerateReportResponse,
+  ReportStatusResponse,
+} from './report.types';
 import { GenerateReportInput } from './reports.schema';
+import { mapReportToStatusResponse } from './reports.mapper';
 import { logger } from '../../lib/logger';
 
 export class ServiceUnavailableError extends Error {
@@ -85,6 +90,18 @@ export class ReportsService {
       status: report.status,
       statusUrl: `/api/reports/${report.id}`,
     };
+  }
+
+  /**
+   * Retrieves the current status of a report by its UUID and maps it to the public contract.
+   * Returns null if no record exists with the provided ID.
+   */
+  async getReportStatus(jobId: string): Promise<ReportStatusResponse | null> {
+    const report = await this.repository.findById(jobId);
+    if (!report) {
+      return null;
+    }
+    return mapReportToStatusResponse(report);
   }
 }
 

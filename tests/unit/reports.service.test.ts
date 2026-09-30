@@ -1,7 +1,7 @@
 /**
  * tests/unit/reports.service.test.ts
  *
- * Unit tests for ReportsService business logic, enqueueing, and compensation.
+ * Unit tests for ReportsService business logic, enqueueing, compensation, and status retrieval.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Queue } from 'bullmq';
@@ -15,17 +15,20 @@ import {
 
 describe('ReportsService', () => {
   let createMock: ReturnType<typeof vi.fn>;
+  let findByIdMock: ReturnType<typeof vi.fn>;
   let markPermanentlyFailedMock: ReturnType<typeof vi.fn>;
   let queueAddMock: ReturnType<typeof vi.fn>;
   let service: ReportsService;
 
   beforeEach(() => {
     createMock = vi.fn();
+    findByIdMock = vi.fn();
     markPermanentlyFailedMock = vi.fn();
     queueAddMock = vi.fn();
 
     const mockRepo = {
       create: createMock,
+      findById: findByIdMock,
       markPermanentlyFailed: markPermanentlyFailedMock,
     } as unknown as ReportsRepository;
 
@@ -128,6 +131,47 @@ describe('ReportsService', () => {
       const [failedId, trace] = (markPermanentlyFailedMock.mock.calls[0] ?? []) as [string, string];
       expect(failedId).toBe(generatedId);
       expect(trace).toContain('ECONNREFUSED');
+    });
+  });
+
+  describe('getReportStatus', () => {
+    it('returns mapped ReportStatusResponse when report exists', async () => {
+      const mockRecord: Report = {
+        id: 'mock-status-uuid',
+        status: REPORT_STATUS.COMPLETED,
+        params: { reportType: 'invoice', format: 'pdf', rowCount: 10 },
+        attempts: 1,
+        file_path: '/reports/file.pdf',
+        error_trace: null,
+        created_at: new Date('2026-09-30T10:00:00.000Z'),
+        updated_at: new Date('2026-09-30T10:00:10.000Z'),
+        started_at: new Date('2026-09-30T10:00:01.000Z'),
+        completed_at: new Date('2026-09-30T10:00:10.000Z'),
+      };
+
+      findByIdMock.mockResolvedValue(mockRecord);
+
+      const result = await service.getReportStatus('mock-status-uuid');
+
+      expect(findByIdMock).toHaveBeenCalledWith('mock-status-uuid');
+      expect(result).toEqual({
+        jobId: 'mock-status-uuid',
+        status: REPORT_STATUS.COMPLETED,
+        attempts: 1,
+        createdAt: '2026-09-30T10:00:00.000Z',
+        updatedAt: '2026-09-30T10:00:10.000Z',
+        downloadUrl: '/api/reports/mock-status-uuid/download',
+        errorMessage: null,
+      });
+    });
+
+    it('returns null when report does not exist in repository', async () => {
+      findByIdMock.mockResolvedValue(null);
+
+      const result = await service.getReportStatus('non-existent-uuid');
+
+      expect(findByIdMock).toHaveBeenCalledWith('non-existent-uuid');
+      expect(result).toBeNull();
     });
   });
 });

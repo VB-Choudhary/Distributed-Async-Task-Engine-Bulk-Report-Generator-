@@ -41,3 +41,13 @@ export interface GenerateReportResponse {
   status: ReportStatus;
   statusUrl: string;
 }
+
+export interface ReportStatusResponse {
+  jobId: string;
+  status: ReportStatus;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+  downloadUrl: string | null;
+  errorMessage: string | null;
+}
